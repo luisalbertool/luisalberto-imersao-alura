@@ -1,3 +1,5 @@
+pip install -r requirements.txt
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -171,4 +173,5 @@ with col_graf5:
 # --- Tabela de Dados Detalhados ---
 st.subheader("Dados Detalhados")
 st.dataframe(df_filtrado)
+
      
