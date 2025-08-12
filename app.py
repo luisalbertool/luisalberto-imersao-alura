@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import pycountry 
 
 st.set_page_config(
     page_title="Dashboard de Salários na Área de Dados",
@@ -29,13 +30,33 @@ contratos_selecionados = st.sidebar.multiselect("Tipo de Contrato", contratos_di
 tamanhos_disponiveis = sorted(df['tamanho_empresa'].unique())
 tamanhos_selecionados = st.sidebar.multiselect("Tamanho da Empresa", tamanhos_disponiveis, default=tamanhos_disponiveis)
 
+#Iso3
+def iso2_to_iso3(code):
+    try:
+        return pycountry.countries.get(alpha_2=code).alpha_3
+    except:
+        return None
+
+#iso 3 empresa
+df['empresa_iso3'] = df['empresa'].apply(iso2_to_iso3)
+
+#media salarial por pais empresa
+df_ds2 = df[df['cargo'] == 'Data Scientist']
+media_ds_empresa = df_ds2.groupby('empresa_iso3')['usd'].mean().reset_index()
+
+
+#Filtro por Empresa
+pais_empresa = sorted(df['empresa_iso3'].dropna().unique())
+pais_empresa = st.sidebar.multiselect('Local da Empresa', pais_empresa, default=pais_empresa)
+
 # --- Filtragem do DataFrame ---
 # O dataframe principal é filtrado com base nas seleções feitas na barra lateral.
 df_filtrado = df[
     (df['ano'].isin(anos_selecionados)) &
     (df['senioridade'].isin(senioridades_selecionadas)) &
     (df['contrato'].isin(contratos_selecionados)) &
-    (df['tamanho_empresa'].isin(tamanhos_selecionados))
+    (df['tamanho_empresa'].isin(tamanhos_selecionados)) &
+    (df['empresa_iso3'].isin(pais_empresa))
 ]
 
 # --- Conteúdo Principal ---
@@ -129,6 +150,23 @@ with col_graf4:
         st.plotly_chart(grafico_paises, use_container_width=True)
     else:
         st.warning("Nenhum dado para exibir no gráfico de países.")
+
+col_graf5, col_graf6 = st.columns(2)
+with col_graf5:
+    if not df_filtrado.empty:
+        df_ds = df_filtrado[df_filtrado['cargo'] == 'Data Scientist']
+        empresa_pais = df_ds.groupby('empresa_iso3')['usd'].mean().reset_index()
+        grafico_empresas = px.choropleth(empresa_pais,
+            locations='empresa_iso3',
+            color='usd',
+            color_continuous_scale='rdylgn',
+            title='Salário médio de Cientista de Dados por local da empresa',
+            labels={'usd': 'Salário médio (USD)', 'empresa_iso3': 'País'})
+        grafico_empresas.update_layout(title_x=0.1)
+        st.plotly_chart(grafico_empresas, use_container_width=True)
+    else:
+        st.warning("Nenhum dado para exibir no gráfico de empresas.")
+    
 
 # --- Tabela de Dados Detalhados ---
 st.subheader("Dados Detalhados")
